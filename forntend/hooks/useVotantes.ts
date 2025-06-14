@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useMutation, useLazyQuery } from "@apollo/client"
 import { REGISTRAR_VOTANTE } from "@/lib/graphql/mutations"
-import { GET_VOTANTE } from "@/lib/graphql/queries"
+import { GET_VOTANTE, GET_ESTADISTICAS_VOTANTES } from "@/lib/graphql/queries"
 
 interface Votante {
   carnet: string
@@ -11,12 +11,38 @@ interface Votante {
   haVotado: boolean
 }
 
+interface EstadisticasVotantes {
+  totalVotantes: number
+  votantesActivos: number
+  votantesQueYaVotaron: number
+  listaVotantes: Votante[]
+}
+
 export function useVotantes() {
   const [votantes, setVotantes] = useState<Votante[]>([])
   const [loading, setLoading] = useState(false)
+  const [estadisticas, setEstadisticas] = useState<EstadisticasVotantes | null>(null)
 
   const [registrarVotanteMutation] = useMutation(REGISTRAR_VOTANTE)
   const [getVotante] = useLazyQuery(GET_VOTANTE)
+  const [getEstadisticasVotantes] = useLazyQuery(GET_ESTADISTICAS_VOTANTES)
+
+  // Cargar estadísticas y lista de votantes al montar el componente
+  useEffect(() => {
+    cargarEstadisticasVotantes()
+  }, [])
+
+  const cargarEstadisticasVotantes = async () => {
+    try {
+      const { data } = await getEstadisticasVotantes()
+      if (data?.estadisticasVotantes) {
+        setEstadisticas(data.estadisticasVotantes)
+        setVotantes(data.estadisticasVotantes.listaVotantes)
+      }
+    } catch (error) {
+      console.error("Error cargando estadísticas de votantes:", error)
+    }
+  }
 
   const registrarVotante = async (carnet: string, nombre: string) => {
     setLoading(true)
@@ -29,14 +55,8 @@ export function useVotantes() {
       })
 
       if (data?.registrarVotante) {
-        // Agregar el nuevo votante al estado local
-        const nuevoVotante: Votante = {
-          carnet,
-          nombre,
-          haVotado: false,
-        }
-
-        setVotantes((prev) => [...prev, nuevoVotante])
+        // Recargar estadísticas y lista de votantes
+        await cargarEstadisticasVotantes()
         return { success: true, message: "✅ Votante registrado exitosamente" }
       }
       return { success: false, message: "❌ Error al registrar el votante" }
@@ -77,13 +97,23 @@ export function useVotantes() {
     setVotantes((prev) =>
       prev.map((v) => (v.carnet === carnet ? { ...v, haVotado: true } : v))
     )
+    // Actualizar estadísticas
+    if (estadisticas) {
+      setEstadisticas({
+        ...estadisticas,
+        votantesQueYaVotaron: estadisticas.votantesQueYaVotaron + 1,
+        votantesActivos: estadisticas.votantesActivos - 1
+      })
+    }
   }
 
   return {
     votantes,
+    estadisticas,
     loading,
     registrarVotante,
     verificarVotante,
     marcarComoVotado,
+    cargarEstadisticasVotantes
   }
 }

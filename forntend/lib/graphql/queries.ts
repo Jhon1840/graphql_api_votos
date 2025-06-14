@@ -115,3 +115,18 @@ export const GET_CANDIDATOS_POR_ELECCION = gql`
     }
   }
 `
+
+export const GET_ESTADISTICAS_VOTANTES = gql`
+  query GetEstadisticasVotantes {
+    estadisticasVotantes {
+      totalVotantes
+      votantesActivos
+      votantesQueYaVotaron
+      listaVotantes {
+        carnet
+        nombre
+        haVotado
+      }
+    }
+  }
+`
