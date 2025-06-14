@@ -70,14 +70,14 @@ namespace VotingSystem.API.Services
                     CREATE TABLE eleccion (
                         id UUID PRIMARY KEY,
                         nombre TEXT,
-                        fecha BIGINT,  -- Cambiado a BIGINT para almacenar timestamp en milisegundos
+                        fecha BIGINT,
                         estado TEXT
                     )");
 
                 _session.Execute(@"
                     CREATE TABLE candidatos_por_eleccion (
                         id_eleccion UUID,
-                        id_candidato TEXT,
+                        id_candidato UUID,
                         nombre TEXT,
                         partido TEXT,
                         PRIMARY KEY (id_eleccion, id_candidato)
@@ -94,15 +94,15 @@ namespace VotingSystem.API.Services
                     CREATE TABLE votos_detalle (
                         id_eleccion UUID,
                         carnet TEXT,
-                        id_candidato TEXT,
-                        fecha_voto BIGINT,  -- Cambiado a BIGINT
+                        id_candidato UUID,
+                        fecha_voto BIGINT,
                         PRIMARY KEY (id_eleccion, carnet)
                     )");
 
                 _session.Execute(@"
                     CREATE TABLE votos_por_candidato (
                         id_eleccion UUID,
-                        id_candidato TEXT,
+                        id_candidato UUID,
                         total_votos COUNTER,
                         PRIMARY KEY (id_eleccion, id_candidato)
                     )");
@@ -197,7 +197,7 @@ namespace VotingSystem.API.Services
                 return result.Select(row => new Candidato
                 {
                     IdEleccion = row.GetValue<Guid>("id_eleccion"),
-                    IdCandidato = row.GetValue<string>("id_candidato"),
+                    IdCandidato = row.GetValue<Guid>("id_candidato"),
                     Nombre = row.GetValue<string>("nombre") ?? "",
                     Partido = row.GetValue<string>("partido") ?? ""
                 }).ToList();
@@ -235,7 +235,7 @@ namespace VotingSystem.API.Services
         }
 
         // Votar
-        public async Task<bool> RegistrarVotoAsync(Guid idEleccion, string carnet, string idCandidato)
+        public async Task<bool> RegistrarVotoAsync(Guid idEleccion, string carnet, Guid idCandidato)
         {
             try
             {
@@ -354,7 +354,7 @@ namespace VotingSystem.API.Services
                 return result.Select(row => new VotoPorCandidato
                 {
                     IdEleccion = row.GetValue<Guid>("id_eleccion"),
-                    IdCandidato = row.GetValue<string>("id_candidato"),
+                    IdCandidato = row.GetValue<Guid>("id_candidato"),
                     TotalVotos = row.GetValue<long>("total_votos")
                 }).ToList();
             }
@@ -366,7 +366,7 @@ namespace VotingSystem.API.Services
         }
 
         // Registrar Candidato
-        public async Task<bool> RegistrarCandidatoAsync(Guid idEleccion, string idCandidato, string nombre, string partido)
+        public async Task<bool> RegistrarCandidatoAsync(Guid idEleccion, Guid idCandidato, string nombre, string partido)
         {
             try
             {
@@ -464,7 +464,7 @@ namespace VotingSystem.API.Services
                 
                 return result.Select(row => new CandidatoInfo
                 {
-                    IdCandidato = row.GetValue<string>("id_candidato"),
+                    IdCandidato = row.GetValue<Guid>("id_candidato").ToString(),
                     Nombre = row.GetValue<string>("nombre") ?? "",
                     Partido = row.GetValue<string>("partido") ?? ""
                 }).ToList();

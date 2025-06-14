@@ -8,7 +8,7 @@ namespace VotingSystem.API.GraphQL
     {
         protected override void Configure(IObjectTypeDescriptor<CandidatoInfo> descriptor)
         {
-            descriptor.Field(c => c.IdCandidato).Type<NonNullType<IdType>>();
+            descriptor.Field(c => c.IdCandidato).Type<UuidType>();
             descriptor.Field(c => c.Nombre).Type<NonNullType<StringType>>();
             descriptor.Field(c => c.Partido).Type<NonNullType<StringType>>();
         }
@@ -39,8 +39,8 @@ namespace VotingSystem.API.GraphQL
     {
         protected override void Configure(IObjectTypeDescriptor<ResultadoVotacion> descriptor)
         {
-            descriptor.Field(r => r.IdEleccion).Type<NonNullType<IdType>>();
-            descriptor.Field(r => r.IdCandidato).Type<NonNullType<IdType>>();
+            descriptor.Field(r => r.IdEleccion).Type<UuidType>();
+            descriptor.Field(r => r.IdCandidato).Type<UuidType>();
             descriptor.Field(r => r.NombreCandidato).Type<NonNullType<StringType>>();
             descriptor.Field(r => r.Partido).Type<NonNullType<StringType>>();
             descriptor.Field(r => r.TotalVotos).Type<NonNullType<LongType>>();
@@ -51,7 +51,7 @@ namespace VotingSystem.API.GraphQL
     {
         protected override void Configure(IObjectTypeDescriptor<Eleccion> descriptor)
         {
-            descriptor.Field(e => e.Id).Type<NonNullType<IdType>>();
+            descriptor.Field(e => e.Id).Type<UuidType>();
             descriptor.Field(e => e.Nombre).Type<NonNullType<StringType>>();
             descriptor.Field(e => e.Fecha).Type<NonNullType<DateTimeType>>();
             descriptor.Field(e => e.Estado).Type<NonNullType<StringType>>();

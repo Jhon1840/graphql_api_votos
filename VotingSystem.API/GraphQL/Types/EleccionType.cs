@@ -1,4 +1,5 @@
 using VotingSystem.API.Models;
+using HotChocolate.Types;
 
 namespace VotingSystem.API.GraphQL.Types
 {
@@ -10,6 +11,7 @@ namespace VotingSystem.API.GraphQL.Types
             
             descriptor
                 .Field(e => e.Id)
+                .Type<UuidType>()
                 .Description("Identificador único de la elección");
             
             descriptor

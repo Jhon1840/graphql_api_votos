@@ -18,37 +18,60 @@ namespace VotingSystem.API.GraphQL
 
         public async Task<Guid> RegistrarEleccion(
             string nombre,
-            DateTime fecha,
+            string fecha,
             string estado,
             [Service] CassandraService cassandraService)
         {
             try
             {
+                _logger.LogInformation("Intentando registrar elección con datos: nombre={Nombre}, fecha={Fecha}, estado={Estado}", 
+                    nombre, fecha, estado);
+
                 if (string.IsNullOrWhiteSpace(nombre))
                 {
+                    _logger.LogWarning("Nombre de elección vacío");
                     throw new GraphQLException("El nombre de la elección no puede estar vacío");
                 }
 
                 if (string.IsNullOrWhiteSpace(estado))
                 {
+                    _logger.LogWarning("Estado de elección vacío");
                     throw new GraphQLException("El estado de la elección no puede estar vacío");
                 }
 
-                if (fecha < DateTime.UtcNow)
+                // Parse the ISO date string to DateTime
+                _logger.LogInformation("Intentando parsear fecha: {Fecha}", fecha);
+                if (!DateTime.TryParse(fecha, out DateTime fechaEleccion))
                 {
+                    _logger.LogWarning("Formato de fecha inválido: {Fecha}", fecha);
+                    throw new GraphQLException($"Formato de fecha inválido: {fecha}. Use formato ISO (YYYY-MM-DDTHH:mm:ss.sssZ)");
+                }
+
+                _logger.LogInformation("Fecha parseada: {FechaParseada}, UTC: {FechaUTC}, UTC actual: {UtcNow}", 
+                    fechaEleccion.ToString("o"), 
+                    fechaEleccion.ToUniversalTime().ToString("o"),
+                    DateTime.UtcNow.ToString("o"));
+
+                if (fechaEleccion <= DateTime.UtcNow)
+                {
+                    _logger.LogWarning("Fecha de elección en el pasado o presente: {Fecha}, UTC actual: {UtcNow}", 
+                        fechaEleccion.ToString("o"), DateTime.UtcNow.ToString("o"));
                     throw new GraphQLException("La fecha de la elección debe ser futura");
                 }
 
                 // Generar un nuevo GUID único para la elección
                 var idEleccion = Guid.NewGuid();
+                _logger.LogInformation("ID de elección generado: {IdEleccion}", idEleccion);
                 
                 // Intentar registrar la elección
-                var resultado = await cassandraService.RegistrarEleccionAsync(idEleccion, nombre, fecha, estado);
+                var resultado = await cassandraService.RegistrarEleccionAsync(idEleccion, nombre, fechaEleccion, estado);
                 if (!resultado)
                 {
+                    _logger.LogError("Error al registrar la elección en la base de datos");
                     throw new GraphQLException("No se pudo registrar la elección en la base de datos");
                 }
 
+                _logger.LogInformation("Elección registrada exitosamente con ID: {IdEleccion}", idEleccion);
                 return idEleccion;
             }
             catch (GraphQLException)
@@ -57,6 +80,7 @@ namespace VotingSystem.API.GraphQL
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error inesperado al registrar elección");
                 throw new GraphQLException($"Error al registrar la elección: {ex.Message}");
             }
         }
@@ -69,13 +93,52 @@ namespace VotingSystem.API.GraphQL
         {
             try
             {
-                // Generar un ID de candidato como string (sin guiones)
-                var idCandidato = Guid.NewGuid().ToString("N");
-                return await cassandraService.RegistrarCandidatoAsync(idEleccion, idCandidato, nombre, partido);
+                _logger.LogInformation("Intentando registrar candidato: elección={IdEleccion}, nombre={Nombre}, partido={Partido}", 
+                    idEleccion, nombre, partido);
+
+                if (string.IsNullOrWhiteSpace(nombre))
+                {
+                    _logger.LogWarning("Nombre de candidato vacío");
+                    throw new GraphQLException("El nombre del candidato no puede estar vacío");
+                }
+
+                if (string.IsNullOrWhiteSpace(partido))
+                {
+                    _logger.LogWarning("Partido de candidato vacío");
+                    throw new GraphQLException("El partido del candidato no puede estar vacío");
+                }
+
+                // Verify that the election exists
+                var eleccion = await cassandraService.GetEleccionAsync(idEleccion);
+                if (eleccion == null)
+                {
+                    _logger.LogWarning("Elección no encontrada: {IdEleccion}", idEleccion);
+                    throw new GraphQLException($"La elección con ID {idEleccion} no existe");
+                }
+
+                // Generar un nuevo GUID para el candidato
+                var idCandidato = Guid.NewGuid();
+                _logger.LogInformation("ID de candidato generado: {IdCandidato}", idCandidato);
+
+                var resultado = await cassandraService.RegistrarCandidatoAsync(idEleccion, idCandidato, nombre, partido);
+                
+                if (!resultado)
+                {
+                    _logger.LogError("Error al registrar el candidato en la base de datos");
+                    throw new GraphQLException("No se pudo registrar el candidato en la base de datos");
+                }
+
+                _logger.LogInformation("Candidato registrado exitosamente");
+                return true;
             }
-            catch
+            catch (GraphQLException)
             {
-                return false;
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error inesperado al registrar candidato");
+                throw new GraphQLException($"Error al registrar el candidato: {ex.Message}");
             }
         }
 
@@ -97,7 +160,7 @@ namespace VotingSystem.API.GraphQL
         public async Task<bool> Votar(
             Guid idEleccion, 
             string carnet, 
-            string idCandidato, 
+            Guid idCandidato, 
             [Service] CassandraService cassandraService)
         {
             try

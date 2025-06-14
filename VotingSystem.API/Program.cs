@@ -38,6 +38,7 @@ builder.Services
     .AddType<EleccionType>()
     .AddType<ResultadoVotacionType>()
     .AddType<EstadisticasVotantesType>()
+    .AddType<UuidType>()
     .AddFiltering()
     .AddSorting()
     .AddProjections()
