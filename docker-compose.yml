@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  cassandra:
+    image: cassandra:4.1
+    container_name: cassandra_voting
+    ports:
+      - "9042:9042"
+    environment:
+      - CASSANDRA_CLUSTER_NAME=VotingCluster
+      - CASSANDRA_DC=datacenter1
+      - CASSANDRA_RACK=rack1
+    volumes:
+      - cassandra_data:/var/lib/cassandra
+      - type: bind
+        source: ${PWD}/cassandra/init.cql
+        target: /docker-entrypoint-initdb.d/init.cql
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -e 'describe keyspaces'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - voting-network
+
+  voting-api:
+    build:
+      context: ./VotingSystem.API
+      dockerfile: Dockerfile
+    container_name: voting_api
+    ports:
+      - "5000:8080"
+    depends_on:
+      cassandra:
+        condition: service_healthy
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - CASSANDRA_CONTACT_POINTS=cassandra
+      - CASSANDRA_PORT=9042
+    restart: unless-stopped
+    networks:
+      - voting-network
+
+volumes:
+  cassandra_data:
+
+networks:
+  voting-network:
+    driver: bridge
